@@ -14,6 +14,7 @@ PowerSpectrum(
     ωlist::AbstractVector,
     reverse::Bool = false;
     solver::SciMLLinearSolveAlgorithm = KrylovJL_GMRES(rtol = 1e-12, atol = 1e-14),
+    target_res_norm = 1e-12,
     verbose::Bool = true,
     filename::String = "",
     SOLVEROptions...,
@@ -25,6 +26,7 @@ PowerSpectrum(
     ωlist,
     reverse;
     solver = solver,
+    target_res_norm = target_res_norm,
     verbose = verbose,
     filename = filename,
     SOLVEROptions...,
@@ -72,6 +74,7 @@ remember to set the parameters:
     ωlist::AbstractVector,
     reverse::Bool = false;
     solver::SciMLLinearSolveAlgorithm = KrylovJL_GMRES(rtol = 1e-12, atol = 1e-14),
+    target_res_norm = 1e-12,
     verbose::Bool = true,
     filename::String = "",
     SOLVEROptions...,
@@ -142,7 +145,8 @@ remember to set the parameters:
         end
 
         # trace over the Hilbert space of system (expectation value)
-        val = -1 * real(dot(_tr_P, sol.u))
+        residual_norm = norm(cache.A * sol.u - b)
+        val = residual_norm < target_res_norm ? -1 * real(dot(_tr_P, sol.u)) : NaN
         Sω[prog.counter[]+1] = val
 
         if SAVE
