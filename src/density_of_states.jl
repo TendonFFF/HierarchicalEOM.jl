@@ -30,6 +30,7 @@ Calculate density of states for the fermionic system in frequency domain.
     d_op::QuantumObject,
     ωlist::AbstractVector;
     solver::SciMLLinearSolveAlgorithm = KrylovJL_GMRES(rtol = 1e-12, atol = 1e-14),
+    target_res_norm=1e-12,
     verbose::Bool = true,
     filename::String = "",
     SOLVEROptions...,
@@ -98,8 +99,10 @@ Calculate density of states for the fermionic system in frequency domain.
             sol_p = solve!(cache_p)
         end
 
+        trust = (norm(cache_m.A * sol_m.u - b_m) < target_res_norm) && (norm(cache_p.A * sol_p.u - b_p) < target_res_norm)
+
         # trace over the Hilbert space of system (expectation value)
-        val = -1 * real(dot(_tr_d_normal, sol_p.u) + dot(_tr_d_dagger, sol_m.u))
+        val = trust ? -1 * real(dot(_tr_d_normal, sol_p.u) + dot(_tr_d_dagger, sol_m.u)) : NaN
         Aω[prog.counter[]+1] = val
 
         if SAVE
