@@ -242,5 +242,243 @@ Note that the parity only need to be set as `ODD` when the system contains fermi
     return M_Boson_Fermion(L_he, Btier, Ftier, _Hsys.dimensions, Nado, sup_dim, parity, Bbath, Fbath, hierarchy)
 end
 
+@doc raw"""
+    M_Boson_Fermion(Hsys, Btier, Ftier, Bbath, Fbath, parity, use_bsr; threshold=0.0, verbose=true)
+Generate the boson-fermion-type HEOM Liouvillian superoperator matrix with optional BSR format
+
+# Parameters
+- `Hsys` : The time-independent system Hamiltonian or Liouvillian
+- `Btier::Int` : the tier (cutoff level) for the bosonic bath
+- `Ftier::Int` : the tier (cutoff level) for the fermionic bath
+- `Bbath::Vector{BosonBath}` : objects for different bosonic baths
+- `Fbath::Vector{FermionBath}` : objects for different fermionic baths
+- `parity::AbstractParity` : the parity label of the operator which HEOMLS is acting on
+- `use_bsr::Bool` : Use Block Sparse Row format for memory efficiency
+- `threshold::Real` : The threshold of the importance value. Defaults to `0.0`.
+- `verbose::Bool` : To display verbose output and progress bar during the process or not. Defaults to `true`.
+
+The BSR format stores the matrix as blocks and automatically deduplicates identical blocks.
+"""
+@noinline function M_Boson_Fermion(
+    Hsys::QuantumObject,
+    Btier::Int,
+    Ftier::Int,
+    Bbath::Vector{BosonBath},
+    Fbath::Vector{FermionBath},
+    parity::AbstractParity,
+    use_bsr::Bool;
+    threshold::Real = 0.0,
+    verbose::Bool = true,
+)
+    if !use_bsr
+        return M_Boson_Fermion(Hsys, Btier, Ftier, Bbath, Fbath, parity, threshold = threshold, verbose = verbose)
+    end
+
+    # check for system dimension
+    _Hsys = HandleMatrixType(Hsys, "Hsys (system Hamiltonian or Liouvillian)")
+    sup_dim = prod(_Hsys.dimensions)^2
+    I_sup = sparse(one(ComplexF64) * I, sup_dim, sup_dim)
+
+    # the Liouvillian operator for free Hamiltonian term
+    Lsys = minus_i_L_op(_Hsys)
+
+    # check for bosonic and fermionic bath
+    if verbose && (threshold > 0.0)
+        print("Checking the importance value for each ADOs...")
+        flush(stdout)
+    end
+    Nado, baths_b, baths_f, hierarchy =
+        genBathHierarchy(Bbath, Fbath, Btier, Ftier, _Hsys.dimensions, threshold = threshold)
+    idx2nvec = hierarchy.idx2nvec
+    nvec2idx = hierarchy.nvec2idx
+    if verbose && (threshold > 0.0)
+        println("[DONE]")
+        flush(stdout)
+    end
+
+    # Create BSR builder
+    builder = BSRBuilder(sup_dim, Nado, Nado)
+
+    # start to construct the matrix
+    if verbose
+        println("Preparing block matrices for HEOM Liouvillian superoperator (BSR format)...")
+        flush(stdout)
+        progr = Progress(Nado; enabled = verbose, desc = "[M_Boson_Fermion BSR] ", QuantumToolbox.settings.ProgressMeterKWARGS...)
+    end
+
+    # Pre-compute unique diagonal blocks
+    diagonal_blocks = Dict{Float64,SparseMatrixCSC{ComplexF64,Int64}}()
+    for idx in 1:Nado
+        nvec_b, nvec_f = idx2nvec[idx]
+        sum_γ = 0.0
+        if nvec_b.level >= 1
+            sum_γ += bath_sum_γ(nvec_b, baths_b)
+        end
+        if nvec_f.level >= 1
+            sum_γ += bath_sum_γ(nvec_f, baths_f)
+        end
+        if !haskey(diagonal_blocks, sum_γ)
+            diagonal_blocks[sum_γ] = Lsys - sum_γ * I_sup
+        end
+    end
+
+    # Pre-compute bosonic off-diagonal blocks
+    B_blocks = Dict{Tuple,SparseMatrixCSC{ComplexF64,Int64}}()
+    D_blocks = Dict{Tuple,SparseMatrixCSC{ComplexF64,Int64}}()
+    mode = 0
+    for bB in baths_b
+        for k in 1:bB.Nterm
+            mode += 1
+            for n_k in 1:Btier
+                block_key = (:D, mode, n_k)
+                if !haskey(D_blocks, block_key)
+                    D_blocks[block_key] = minus_i_D_op(bB, k, n_k)
+                end
+            end
+            block_key = (:B, mode)
+            if !haskey(B_blocks, block_key)
+                B_blocks[block_key] = minus_i_B_op(bB)
+            end
+        end
+    end
+
+    # Pre-compute fermionic off-diagonal blocks
+    C_blocks = Dict{Tuple,SparseMatrixCSC{ComplexF64,Int64}}()
+    A_blocks = Dict{Tuple,SparseMatrixCSC{ComplexF64,Int64}}()
+    for idx in 1:Nado
+        nvec_b, nvec_f = idx2nvec[idx]
+        mode = 0
+        for fB in baths_f
+            for k in 1:fB.Nterm
+                mode += 1
+                n_k = nvec_f[mode]
+                
+                if n_k > 0
+                    n_exc = nvec_f.level
+                    n_exc_before_list = [sum(nvec_f[1:(mode-1)]) - i for i in 0:1]
+                    for n_exc_before in unique(n_exc_before_list)
+                        block_key = (:C, mode, n_exc, n_exc_before)
+                        if !haskey(C_blocks, block_key)
+                            C_blocks[block_key] = minus_i_C_op(fB, k, n_exc, n_exc_before, parity)
+                        end
+                    end
+                elseif nvec_f.level < Ftier
+                    n_exc = nvec_f.level
+                    n_exc_before_list = [sum(nvec_f[1:(mode-1)]) + i for i in 0:1]
+                    for n_exc_before in unique(n_exc_before_list)
+                        block_key = (:A, mode, n_exc, n_exc_before)
+                        if !haskey(A_blocks, block_key)
+                            A_blocks[block_key] = minus_i_A_op(fB, n_exc, n_exc_before, parity)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    # Now add blocks in parallel
+    @threads for idx in 1:Nado
+        # boson and fermion (current level) superoperator
+        sum_γ = 0.0
+        nvec_b, nvec_f = idx2nvec[idx]
+        if nvec_b.level >= 1
+            sum_γ += bath_sum_γ(nvec_b, baths_b)
+        end
+        if nvec_f.level >= 1
+            sum_γ += bath_sum_γ(nvec_f, baths_f)
+        end
+        op = diagonal_blocks[sum_γ]
+        add_block!(builder, op, idx, idx)
+
+        # connect to bosonic (n+1)th- & (n-1)th- level superoperator
+        mode = 0
+        nvec_neigh = copy(nvec_b)
+        for bB in baths_b
+            for k in 1:bB.Nterm
+                mode += 1
+                n_k = nvec_b[mode]
+
+                # connect to bosonic (n-1)th-level superoperator
+                if n_k > 0
+                    Nvec_minus!(nvec_neigh, mode)
+                    if (threshold == 0.0) || haskey(nvec2idx, (nvec_neigh, nvec_f))
+                        idx_neigh = nvec2idx[(nvec_neigh, nvec_f)]
+                        block_key = (:D, mode, n_k)
+                        op = D_blocks[block_key]
+                        add_block!(builder, op, idx, idx_neigh)
+                    end
+                    Nvec_plus!(nvec_neigh, mode)
+                end
+
+                # connect to bosonic (n+1)th-level superoperator
+                if nvec_b.level < Btier
+                    Nvec_plus!(nvec_neigh, mode)
+                    if (threshold == 0.0) || haskey(nvec2idx, (nvec_neigh, nvec_f))
+                        idx_neigh = nvec2idx[(nvec_neigh, nvec_f)]
+                        block_key = (:B, mode)
+                        op = B_blocks[block_key]
+                        add_block!(builder, op, idx, idx_neigh)
+                    end
+                    Nvec_minus!(nvec_neigh, mode)
+                end
+            end
+        end
+
+        # connect to fermionic (n+1)th- & (n-1)th- level superoperator
+        mode = 0
+        nvec_neigh = copy(nvec_f)
+        for fB in baths_f
+            for k in 1:fB.Nterm
+                mode += 1
+                n_k = nvec_f[mode]
+
+                # connect to fermionic (n-1)th-level superoperator
+                if n_k > 0
+                    Nvec_minus!(nvec_neigh, mode)
+                    if (threshold == 0.0) || haskey(nvec2idx, (nvec_b, nvec_neigh))
+                        idx_neigh = nvec2idx[(nvec_b, nvec_neigh)]
+                        n_exc = nvec_f.level
+                        n_exc_before = sum(nvec_neigh[1:(mode-1)])
+                        block_key = (:C, mode, n_exc, n_exc_before)
+                        op = C_blocks[block_key]
+                        add_block!(builder, op, idx, idx_neigh)
+                    end
+                    Nvec_plus!(nvec_neigh, mode)
+
+                    # connect to fermionic (n+1)th-level superoperator
+                elseif nvec_f.level < Ftier
+                    Nvec_plus!(nvec_neigh, mode)
+                    if (threshold == 0.0) || haskey(nvec2idx, (nvec_b, nvec_neigh))
+                        idx_neigh = nvec2idx[(nvec_b, nvec_neigh)]
+                        n_exc = nvec_f.level
+                        n_exc_before = sum(nvec_neigh[1:(mode-1)])
+                        block_key = (:A, mode, n_exc, n_exc_before)
+                        op = A_blocks[block_key]
+                        add_block!(builder, op, idx, idx_neigh)
+                    end
+                    Nvec_minus!(nvec_neigh, mode)
+                end
+            end
+        end
+        verbose && next!(progr)
+    end
+
+    # Build the BSR matrix
+    bsr_matrix = build_bsr_matrix(builder; verbose = verbose)
+    
+    if verbose
+        println("BSR construction complete:")
+        println("  Total blocks: $(nnz_blocks(bsr_matrix))")
+        println("  Unique blocks stored: $(n_unique_blocks(bsr_matrix))")
+        println("  Memory savings: $(round((1 - memory_savings(bsr_matrix)) * 100, digits=2))% reduction")
+        flush(stdout)
+    end
+
+    # Wrap in BSROperator for SciML compatibility
+    L_he = BSROperator(bsr_matrix; isconstant = true)
+
+    return M_Boson_Fermion(L_he, Btier, Ftier, _Hsys.dimensions, Nado, sup_dim, parity, Bbath, Fbath, hierarchy)
+end
+
 _getBtier(M::M_Boson_Fermion) = M.Btier
 _getFtier(M::M_Boson_Fermion) = M.Ftier
