@@ -429,6 +429,16 @@ function add_operator!(op, I, J, V, N_he, row_idx, col_idx)
     return nothing
 end
 
+"""
+    add_block!(builder::BSRBuilder, op::SparseMatrixCSC, block_row::Int, block_col::Int)
+
+Add a block operator to the BSR builder at the specified block indices.
+"""
+function add_block!(builder::BSRBuilder, op::SparseMatrixCSC, block_row::Int, block_col::Int)
+    add_block!(builder, block_row, block_col, op)
+    return nothing
+end
+
 # sum γ of bath for current level
 function bath_sum_γ(nvec, baths::Vector{T}) where {T<:Union{AbstractBosonBath,AbstractFermionBath}}
     p = 0
