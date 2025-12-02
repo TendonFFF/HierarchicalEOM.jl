@@ -2,7 +2,7 @@ using Test
 using TestItemRunner
 using Pkg
 
-const GROUP_LIST = String["All", "Core", "Code-Quality", "CUDA_Ext"]
+const GROUP_LIST = String["All", "Core", "BSR", "Code-Quality", "CUDA_Ext"]
 
 const GROUP = get(ENV, "GROUP", "All")
 (GROUP in GROUP_LIST) || throw(ArgumentError("Unknown GROUP = $GROUP\nThe allowed groups are: $GROUP_LIST\n"))
@@ -19,6 +19,17 @@ if (GROUP == "All") || (GROUP == "Core")
 
     println("\nStart running Core tests...\n")
     @run_package_tests verbose=true
+end
+
+if (GROUP == "BSR")
+    import HierarchicalEOM
+    using LinearAlgebra
+    using SparseArrays
+
+    HierarchicalEOM.about()
+
+    println("\nStart running BSR tests...\n")
+    @run_package_tests filter=ti->(:BSR in ti.tags) verbose=true
 end
 
 ########################################################################

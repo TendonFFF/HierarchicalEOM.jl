@@ -1,5 +1,4 @@
-# @testitem "Block Sparse Row (BSR) Matrix" begin
-    @testitem "BlockSparseRowMatrix basics" begin
+    @testitem "BlockSparseRowMatrix basics" tags=[:BSR] begin
         using SparseArrays
         # Create a simple BSR matrix
         block_size = 2
@@ -39,7 +38,7 @@
         @test sparse_mat[1, 1] == 1.0 + 0im
     end
     
-    @testitem "BSRBuilder" begin
+    @testitem "BSRBuilder" tags=[:BSR] begin
         using SparseArrays
         block_size = 2
         nrows = 3
@@ -69,7 +68,7 @@
         @test getblock(bsr, 1, 2) !== nothing
     end
     
-    @testitem "BSROperator" begin
+    @testitem "BSROperator" tags=[:BSR] begin
         using SparseArrays
         using LinearAlgebra
         import SciMLOperators
@@ -114,7 +113,7 @@
         @test sparse_mat * x ≈ y
     end
     
-    @testitem "M_Boson with BSR" begin
+    @testitem "M_Boson with BSR" tags=[:BSR] begin
         using SparseArrays
         # Use proper parameters from existing tests
         λ = 0.1450
@@ -172,7 +171,7 @@
         end
     end
     
-    @testitem "M_Fermion with BSR" begin
+    @testitem "M_Fermion with BSR" tags=[:BSR] begin
         using SparseArrays
         # Use proper parameters from existing tests
         λ = 0.1450
@@ -231,7 +230,7 @@
         end
     end
     
-    @testitem "M_Boson_Fermion with BSR" begin
+    @testitem "M_Boson_Fermion with BSR" tags=[:BSR] begin
         using SparseArrays
         # Use proper parameters from existing tests
         λ = 0.1450
@@ -291,4 +290,4 @@
             @test n_unique_blocks(bsr_mat) < nnz_blocks(bsr_mat)  # Should have deduplication
         end
     end
-# end
+
