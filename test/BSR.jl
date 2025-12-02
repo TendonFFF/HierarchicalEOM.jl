@@ -149,7 +149,97 @@
         # Check memory savings
         if M_bsr.data isa BSROperator
             bsr_mat = M_bsr.data.bsr
-            println("\nBSR Memory Savings for tier=$tier:")
+            println("\nBSR Memory Savings for Boson (tier=$tier):")
+            println("  Total blocks: $(nnz_blocks(bsr_mat))")
+            println("  Unique blocks: $(n_unique_blocks(bsr_mat))")
+            println("  Savings: $(round((1 - memory_savings(bsr_mat)) * 100, digits=2))%")
+            
+            @test n_unique_blocks(bsr_mat) < nnz_blocks(bsr_mat)  # Should have deduplication
+        end
+    end
+    
+    @testitem "M_Fermion with BSR" begin
+        using SparseArrays
+        # Create a simple 2-level fermionic system
+        Hsys = sigmaz()
+        
+        # Create a fermionic bath with small parameters for testing
+        Bath = FermionBath(Hsys, 0.1, 1.0, 0.5, 3)
+        
+        tier = 2
+        
+        # Test standard CSC format
+        M_csc = M_Fermion(Hsys, tier, Bath, verbose=false)
+        
+        # Test BSR format
+        M_bsr = M_Fermion(Hsys, tier, Bath, EVEN, true, verbose=false)
+        
+        @test size(M_csc) == size(M_bsr)
+        @test M_csc.N == M_bsr.N
+        @test M_csc.sup_dim == M_bsr.sup_dim
+        
+        # Test that BSR operator behaves like CSC
+        x = randn(ComplexF64, size(M_csc, 1))
+        
+        y_csc = M_csc.data * x
+        y_bsr = M_bsr.data * x
+        
+        # They should give the same result
+        @test y_csc ≈ y_bsr rtol=1e-10
+        
+        # Check that BSR is actually using the BSROperator
+        @test M_bsr.data isa BSROperator
+        
+        # Check memory savings
+        if M_bsr.data isa BSROperator
+            bsr_mat = M_bsr.data.bsr
+            println("\nBSR Memory Savings for Fermion (tier=$tier):")
+            println("  Total blocks: $(nnz_blocks(bsr_mat))")
+            println("  Unique blocks: $(n_unique_blocks(bsr_mat))")
+            println("  Savings: $(round((1 - memory_savings(bsr_mat)) * 100, digits=2))%")
+            
+            @test n_unique_blocks(bsr_mat) < nnz_blocks(bsr_mat)  # Should have deduplication
+        end
+    end
+    
+    @testitem "M_Boson_Fermion with BSR" begin
+        using SparseArrays
+        # Create a simple 2-level system with both bosonic and fermionic baths
+        Hsys = sigmaz()
+        
+        # Create both types of baths
+        Bbath = BosonBath(Hsys, 0.1, 1.0, 0.5, 2)
+        Fbath = FermionBath(Hsys, 0.1, 1.0, 0.5, 2)
+        
+        Btier = 2
+        Ftier = 2
+        
+        # Test standard CSC format
+        M_csc = M_Boson_Fermion(Hsys, Btier, Ftier, Bbath, Fbath, verbose=false)
+        
+        # Test BSR format
+        M_bsr = M_Boson_Fermion(Hsys, Btier, Ftier, Bbath, Fbath, EVEN, true, verbose=false)
+        
+        @test size(M_csc) == size(M_bsr)
+        @test M_csc.N == M_bsr.N
+        @test M_csc.sup_dim == M_bsr.sup_dim
+        
+        # Test that BSR operator behaves like CSC
+        x = randn(ComplexF64, size(M_csc, 1))
+        
+        y_csc = M_csc.data * x
+        y_bsr = M_bsr.data * x
+        
+        # They should give the same result
+        @test y_csc ≈ y_bsr rtol=1e-10
+        
+        # Check that BSR is actually using the BSROperator
+        @test M_bsr.data isa BSROperator
+        
+        # Check memory savings
+        if M_bsr.data isa BSROperator
+            bsr_mat = M_bsr.data.bsr
+            println("\nBSR Memory Savings for Boson_Fermion (Btier=$Btier, Ftier=$Ftier):")
             println("  Total blocks: $(nnz_blocks(bsr_mat))")
             println("  Unique blocks: $(n_unique_blocks(bsr_mat))")
             println("  Savings: $(round((1 - memory_savings(bsr_mat)) * 100, digits=2))%")
