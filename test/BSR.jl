@@ -116,13 +116,27 @@
     
     @testitem "M_Boson with BSR" begin
         using SparseArrays
-        # Create a simple 2-level system
-        Hsys = sigmaz()
-        
-        # Create a bosonic bath with small parameters for testing
-        Bath = BosonBath(Hsys, 0.1, 1.0, 0.5, 3)
-        
+        # Use proper parameters from existing tests
+        λ = 0.1450
+        W = 0.6464
+        kT = 0.7414
+        N = 3
         tier = 2
+        
+        # System Hamiltonian
+        Hsys = Qobj([
+            0.6969 0.4364
+            0.4364 0.3215
+        ])
+        
+        # system-bath coupling operator
+        Q = Qobj([
+            0.1234 0.1357+0.2468im
+            0.1357-0.2468im 0.5678
+        ])
+        
+        # Create bosonic bath with Drude-Lorentz spectral density
+        Bath = Boson_DrudeLorentz_Pade(Q, λ, W, kT, N)
         
         # Test standard CSC format
         M_csc = M_Boson(Hsys, tier, Bath, verbose=false)
@@ -160,13 +174,28 @@
     
     @testitem "M_Fermion with BSR" begin
         using SparseArrays
-        # Create a simple 2-level fermionic system
-        Hsys = sigmaz()
-        
-        # Create a fermionic bath with small parameters for testing
-        Bath = FermionBath(Hsys, 0.1, 1.0, 0.5, 3)
-        
+        # Use proper parameters from existing tests
+        λ = 0.1450
+        W = 0.6464
+        kT = 0.7414
+        μ = 0.8787
+        N = 3
         tier = 2
+        
+        # System Hamiltonian
+        Hsys = Qobj([
+            0.6969 0.4364
+            0.4364 0.3215
+        ])
+        
+        # system-bath coupling operator (fermion annihilation operator)
+        Q = Qobj([
+            0.1234 0.1357+0.2468im
+            0.1357-0.2468im 0.5678
+        ])
+        
+        # Create fermionic bath with Lorentz spectral density
+        Bath = Fermion_Lorentz_Pade(Q, λ, μ, W, kT, N)
         
         # Test standard CSC format
         M_csc = M_Fermion(Hsys, tier, Bath, verbose=false)
@@ -204,15 +233,30 @@
     
     @testitem "M_Boson_Fermion with BSR" begin
         using SparseArrays
-        # Create a simple 2-level system with both bosonic and fermionic baths
-        Hsys = sigmaz()
-        
-        # Create both types of baths
-        Bbath = BosonBath(Hsys, 0.1, 1.0, 0.5, 2)
-        Fbath = FermionBath(Hsys, 0.1, 1.0, 0.5, 2)
-        
+        # Use proper parameters from existing tests
+        λ = 0.1450
+        W = 0.6464
+        kT = 0.7414
+        μ = 0.8787
+        N = 2  # Smaller N for mixed bath to keep test fast
         Btier = 2
         Ftier = 2
+        
+        # System Hamiltonian
+        Hsys = Qobj([
+            0.6969 0.4364
+            0.4364 0.3215
+        ])
+        
+        # system-bath coupling operator
+        Q = Qobj([
+            0.1234 0.1357+0.2468im
+            0.1357-0.2468im 0.5678
+        ])
+        
+        # Create both types of baths with proper spectral densities
+        Bbath = Boson_DrudeLorentz_Pade(Q, λ, W, kT, N)
+        Fbath = Fermion_Lorentz_Pade(Q, λ, μ, W, kT, N)
         
         # Test standard CSC format
         M_csc = M_Boson_Fermion(Hsys, Btier, Ftier, Bbath, Fbath, verbose=false)
