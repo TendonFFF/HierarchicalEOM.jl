@@ -1,4 +1,4 @@
-export BlockSparseRowMatrix, nnz_blocks, n_unique_blocks, memory_savings, getblock, to_sparse
+export BlockSparseRowMatrix, nnz_blocks, n_unique_blocks, memory_savings, getblock, to_sparse, bsr_to_csc
 
 """
     struct BlockSparseRowMatrix
@@ -149,6 +149,15 @@ end
     to_sparse(B::BlockSparseRowMatrix)
 
 Convert a BlockSparseRowMatrix to a standard SparseMatrixCSC.
+
+This function reconstructs the full sparse matrix from the block representation.
+All blocks (including deduplicated ones) are expanded back to their full positions.
+
+# Example
+```julia
+bsr = BlockSparseRowMatrix(...)
+csc_matrix = to_sparse(bsr)
+```
 """
 function to_sparse(B::BlockSparseRowMatrix)
     rows = Int[]
@@ -173,6 +182,41 @@ function to_sparse(B::BlockSparseRowMatrix)
     
     return sparse(rows, cols, vals, B.full_size[1], B.full_size[2])
 end
+
+"""
+    bsr_to_csc(B::BlockSparseRowMatrix)
+
+Convert a Block Sparse Row (BSR) matrix to Compressed Sparse Column (CSC) format.
+
+This is an alias for `to_sparse(B)` with more explicit naming that clearly indicates
+the conversion from BSR format to standard CSC format (SparseMatrixCSC).
+
+# Arguments
+- `B::BlockSparseRowMatrix`: The BSR matrix to convert
+
+# Returns
+- `SparseMatrixCSC{ComplexF64, Int64}`: The equivalent matrix in CSC format
+
+# Example
+```julia
+# Create BSR matrix
+builder = BSRBuilder(4, 3, 3)
+add_block!(builder, 1, 1, sparse([1.0+0im 0; 0 1.0]))
+bsr = build_bsr_matrix(builder)
+
+# Convert to CSC
+csc_matrix = bsr_to_csc(bsr)
+
+# Both representations are equivalent
+@assert bsr * x ≈ csc_matrix * x
+```
+
+# Notes
+- The conversion expands all deduplicated blocks back to their full positions
+- The resulting CSC matrix will be larger in memory than the BSR representation
+- This is useful for compatibility with functions that require standard sparse matrices
+"""
+bsr_to_csc(B::BlockSparseRowMatrix) = to_sparse(B)
 
 """
     Base.show(io::IO, B::BlockSparseRowMatrix)
