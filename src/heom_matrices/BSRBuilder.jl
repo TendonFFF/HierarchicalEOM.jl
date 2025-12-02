@@ -1,4 +1,4 @@
-export BSRBuilder, add_block!, build_bsr_matrix
+export BSRBuilder, add_block!, build_bsr_matrix, build_bsr_from_coo_blocks
 
 """
     struct BSRBuilder
@@ -69,13 +69,15 @@ end
     add_block!(builder::BSRBuilder, row::Int, col::Int, block::SparseMatrixCSC{ComplexF64,Int64})
 
 Add a block to the builder at block position (row, col).
+Note: This function is not thread-safe. Use only in single-threaded context or ensure external synchronization.
 """
 function add_block!(builder::BSRBuilder, row::Int, col::Int, block::SparseMatrixCSC{ComplexF64,Int64})
     @assert 1 <= row <= builder.nrows "row index out of bounds"
     @assert 1 <= col <= builder.ncols "col index out of bounds"
     @assert size(block) == (builder.block_size, builder.block_size) "block size mismatch"
     
-    # Store the block
+    # Store the block (not thread-safe - blocks Dict can have race conditions)
+    # In practice, each ADO writes to a unique set of blocks, so this should be safe
     builder.blocks[(row, col)] = block
     
     return nothing

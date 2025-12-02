@@ -1,4 +1,4 @@
-export BlockSparseRowMatrix
+export BlockSparseRowMatrix, nnz_blocks, n_unique_blocks, memory_savings, getblock, to_sparse
 
 """
     struct BlockSparseRowMatrix
