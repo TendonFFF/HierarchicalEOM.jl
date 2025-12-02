@@ -1,11 +1,6 @@
-using HierarchicalEOM
-using QuantumToolbox
-using Test
-using LinearAlgebra
-using SparseArrays
-
-@testset "Block Sparse Row (BSR) Matrix" begin
-    @testset "BlockSparseRowMatrix basics" begin
+# @testitem "Block Sparse Row (BSR) Matrix" begin
+    @testitem "BlockSparseRowMatrix basics" begin
+        using SparseArrays
         # Create a simple BSR matrix
         block_size = 2
         nrows = 2
@@ -44,7 +39,8 @@ using SparseArrays
         @test sparse_mat[1, 1] == 1.0 + 0im
     end
     
-    @testset "BSRBuilder" begin
+    @testitem "BSRBuilder" begin
+        using SparseArrays
         block_size = 2
         nrows = 3
         ncols = 3
@@ -73,7 +69,10 @@ using SparseArrays
         @test getblock(bsr, 1, 2) !== nothing
     end
     
-    @testset "BSROperator" begin
+    @testitem "BSROperator" begin
+        using SparseArrays
+        using LinearAlgebra
+        import SciMLOperators
         # Create a simple BSR matrix
         block_size = 2
         nrows = 2
@@ -115,7 +114,8 @@ using SparseArrays
         @test sparse_mat * x ≈ y
     end
     
-    @testset "M_Boson with BSR" begin
+    @testitem "M_Boson with BSR" begin
+        using SparseArrays
         # Create a simple 2-level system
         Hsys = sigmaz()
         
@@ -157,4 +157,4 @@ using SparseArrays
             @test n_unique_blocks(bsr_mat) < nnz_blocks(bsr_mat)  # Should have deduplication
         end
     end
-end
+# end

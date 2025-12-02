@@ -85,11 +85,11 @@ include("bath_correlation_functions/bath_correlation_func.jl")
 include("Parity.jl")
 include("ADOs.jl")
 
-# HEOM Liouvillian superoperator (HEOMLS) matrices
-include("heom_matrices/heom_matrix_base.jl")
 include("heom_matrices/BlockSparseRowMatrix.jl")
 include("heom_matrices/BSRBuilder.jl")
 include("heom_matrices/BSROperator.jl")
+# HEOM Liouvillian superoperator (HEOMLS) matrices
+include("heom_matrices/heom_matrix_base.jl")
 include("heom_matrices/Nvec.jl")
 include("heom_matrices/HierarchyDict.jl")
 include("heom_matrices/M_S.jl")

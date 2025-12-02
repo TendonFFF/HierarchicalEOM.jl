@@ -1,7 +1,7 @@
 export BSROperator
 
 """
-    struct BSROperator <: AbstractSciMLOperator
+    struct BSROperator{T} <: AbstractSciMLOperator{T}
 
 A SciML-compatible operator wrapper for BlockSparseRowMatrix.
 
@@ -14,14 +14,14 @@ and automatic differentiation capabilities.
 - `iscached::Bool` : whether the cache is populated
 - `isconstant::Bool` : whether the operator is time-independent
 """
-mutable struct BSROperator <: AbstractSciMLOperator
+mutable struct BSROperator{T} <: AbstractSciMLOperator{T}
     bsr::BlockSparseRowMatrix
     cache::Union{Nothing,SparseMatrixCSC{ComplexF64,Int64}}
     iscached::Bool
     isconstant::Bool
     
     function BSROperator(bsr::BlockSparseRowMatrix; isconstant::Bool = true)
-        new(bsr, nothing, false, isconstant)
+        new{ComplexF64}(bsr, nothing, false, isconstant)
     end
 end
 
@@ -182,10 +182,3 @@ Create a MatrixOperator from a BlockSparseRowMatrix by converting to sparse form
 function SciMLOperators.MatrixOperator(bsr::BlockSparseRowMatrix; kwargs...)
     return MatrixOperator(to_sparse(bsr); kwargs...)
 end
-
-"""
-    BSROperator(bsr::BlockSparseRowMatrix; isconstant=true)
-
-Create a BSROperator from a BlockSparseRowMatrix.
-"""
-BSROperator(bsr::BlockSparseRowMatrix; isconstant::Bool = true) = BSROperator(bsr, isconstant = isconstant)

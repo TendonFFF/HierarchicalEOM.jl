@@ -164,12 +164,14 @@ function build_bsr_matrix(builder::BSRBuilder; verbose::Bool = false)
     block_colptr = ones(Int, builder.ncols + 1)
     block_indices = Int[]
     
-    current_col = 0
+    current_col = 1
+    block_colptr[1] = 1
+    
     for ((row, col), block) in sorted_blocks
-        # Update colptr when we move to a new column
+        # When we move to a new column, update pointers for all columns in between
         while current_col < col
+            block_colptr[current_col + 1] = length(block_rowval) + 1
             current_col += 1
-            block_colptr[current_col+1] = length(block_rowval) + 1
         end
         
         # Find the unique index for this block
@@ -190,10 +192,10 @@ function build_bsr_matrix(builder::BSRBuilder; verbose::Bool = false)
         push!(block_indices, unique_idx)
     end
     
-    # Finish colptr
-    while current_col < builder.ncols
+    # Finish colptr for remaining columns
+    while current_col <= builder.ncols
+        block_colptr[current_col + 1] = length(block_rowval) + 1
         current_col += 1
-        block_colptr[current_col+1] = length(block_rowval) + 1
     end
     
     return BlockSparseRowMatrix(

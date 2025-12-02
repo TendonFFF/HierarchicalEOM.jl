@@ -9,6 +9,11 @@ const GROUP = get(ENV, "GROUP", "All")
 
 if (GROUP == "All") || (GROUP == "Core")
     import HierarchicalEOM
+    # using HierarchicalEOM
+    # using QuantumToolbox
+    # using Test
+    using LinearAlgebra
+    using SparseArrays
 
     HierarchicalEOM.about()
 
