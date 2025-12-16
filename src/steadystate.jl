@@ -69,7 +69,7 @@ Solve the steady state of the auxiliary density operators based on time evolutio
 - `::ADOs` : The steady state of auxiliary density operators.
 """
 function QuantumToolbox.steadystate(
-    M::AbstractHEOMLSMatrix{<:MatrixOperator},
+    M::AbstractHEOMLSMatrix,
     ρ0::T_state,
     tspan::Number = Inf;
     alg::AbstractODEAlgorithm = DP5(),
@@ -106,7 +106,8 @@ function QuantumToolbox.steadystate(
         merge(kwargs2, (callback = cb,))
 
     # define ODE problem
-    prob = ODEProblem{true,FullSpecialize}(M.data, u0, Tspan; kwargs3...)
+    Mdt_cached = cache_operator(M.data, similar(u0))
+    prob = ODEProblem{true,FullSpecialize}(Mdt_cached, u0, Tspan; kwargs3...)
 
     # solving steady state of the ODE problem
     if verbose
