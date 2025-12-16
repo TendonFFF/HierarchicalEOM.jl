@@ -84,7 +84,7 @@ Calculate density of states for the fermionic system in frequency domain.
     A0 = needs_concrete_A(alg) ? concretize(M.data) : cache_operator(M.data, similar(b_m))
     cache_m = init(LinearProblem(A0 - Iω1, b_m), alg, kwargs...)
     cache_p = init(LinearProblem(A0 + Iω1, b_p), alg, kwargs...)
-    for (idx, ω) in enumerate(ωList)ß
+    for (idx, ω) in enumerate(ωList)
         if idx > 1
             Iω = i * ω * I_total
             cache_m.A = A0 - Iω
