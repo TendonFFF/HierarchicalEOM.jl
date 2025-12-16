@@ -65,7 +65,7 @@ import SciMLOperators:
     concretize
 import OrdinaryDiffEqLowOrderRK: DP5
 import DiffEqCallbacks: FunctionCallingCallback, TerminateSteadyState
-import LinearSolve: LinearSolve, LinearProblem, SciMLLinearSolveAlgorithm, KrylovJL_GMRES
+import LinearSolve: LinearProblem, SciMLLinearSolveAlgorithm, needs_concrete_A, KrylovJL_GMRES
 
 # other dependencies (in alphabetical order)
 import FastExpm: fastExpm

@@ -20,7 +20,7 @@ function QuantumToolbox.steadystate(
     verbose::Bool = true,
     kwargs...,
 )
-    isconstant(M) || throw(ArgumentError("The HEOM matrix M should be time-independent."))
+    isconstant(M) || throw(ArgumentError("The HEOMLS matrix should be time-independent."))
     haskey(kwargs, :solver) &&
         error("The keyword argument `solver` for solving HEOM steadystate is deprecated, use `alg` instead.")
 
@@ -29,9 +29,9 @@ function QuantumToolbox.steadystate(
         error("The parity of M should be \"EVEN\".")
     end
 
+    b = _HandleVectorType(M, sparsevec([1], [1.0 + 0.0im], size(M, 1)))
     A = M.data + _SteadyStateConstraint(M)
-    b = sparsevec([1], [1.0 + 0.0im], size(M, 1))
-    A = nor(iscached(A), LinearSolve.needs_concrete_A(alg)) ? cache_operator(A, b) : A
+    A = needs_concrete_A(alg) ? concretize(A) : cache_operator(A, b)
 
     # solving x where A * x = b
     if verbose
@@ -39,7 +39,7 @@ function QuantumToolbox.steadystate(
         flush(stdout)
     end
 
-    prob = LinearProblem{true}(A, _HandleVectorType(M, b))
+    prob = LinearProblem{true}(A, b)
     sol = solve(prob, alg; kwargs...)
     if verbose
         println("[DONE]")
