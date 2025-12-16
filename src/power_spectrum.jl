@@ -133,7 +133,7 @@ remember to set the parameters:
     )
     i = reverse ? convert(ElType, 1im) : i = convert(ElType, -1im)
     I_total = Eye(size(M, 1))
-    A0 = needs_concrete_A(alg) ? concretize(M.data) : cache_operator(M.data, b)
+    A0 = needs_concrete_A(alg) ? concretize(M.data) : cache_operator(M.data, similar(b))
     cache = init(LinearProblem(A0 + i * ωList[1] * I_total, b), alg, kwargs...)
     for (idx, ω) in enumerate(ωList)
         if idx > 1
