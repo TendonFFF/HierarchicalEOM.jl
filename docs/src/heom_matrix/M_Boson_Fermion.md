@@ -16,7 +16,7 @@ To construct the HEOM matrix in this case, one can call
 
 *kwargs* (Keyword Arguments)
  - `threshold::Real` : The threshold of the [importance value](@ref doc-Importance-Value-and-Threshold). Defaults to `0.0`.
- - `assemble::Union{Val,Symbol}` : The assembly mode for the HEOMLS matrix. It can be 
+ - `assemble::Union{Val,Symbol}` : The assemble method for the HEOMLS matrix. It can be 
     - `Val(:full)` : Assemble the HEOMLS matrix into a single sparse matrix (default);
     - `Val(:combine)` : Combine terms but do not assemble the HEOMLS matrix (lazy evaluation).
     - `Val(:none)` : Do not assemble the HEOMLS matrix (lazy evaluation).
