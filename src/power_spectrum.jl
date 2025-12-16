@@ -8,7 +8,7 @@ This function is equivalent to:
 `PowerSpectrum(M, ρ, Q_op', Q_op, ωlist, reverse; alg, progress_bar, filename, kwargs...)`
 """
 PowerSpectrum(
-    M::AbstractHEOMLSMatrix{<:MatrixOperator},
+    M::AbstractHEOMLSMatrix,
     ρ::Union{QuantumObject,ADOs},
     Q_op::QuantumObject,
     ωlist::AbstractVector,
@@ -65,7 +65,7 @@ remember to set the parameters:
 - `spec::AbstractVector` : the spectrum list corresponds to the specified `ωlist`
 """
 @noinline function PowerSpectrum(
-    M::AbstractHEOMLSMatrix{<:MatrixOperator},
+    M::AbstractHEOMLSMatrix,
     ρ::Union{QuantumObject,ADOs},
     P_op,
     Q_op,
@@ -76,6 +76,7 @@ remember to set the parameters:
     filename::String = "",
     kwargs...,
 )
+    isconstant(M) || throw(ArgumentError("The HEOM matrix M should be time-independent."))
     haskey(kwargs, :solver) &&
         error("The keyword argument `solver` for PowerSpectrum is deprecated, use `alg` instead.")
     haskey(kwargs, :verbose) &&
@@ -132,10 +133,11 @@ remember to set the parameters:
     )
     i = reverse ? convert(ElType, 1im) : i = convert(ElType, -1im)
     I_total = Eye(size(M, 1))
-    cache = init(LinearProblem(M.data.A + i * ωList[1] * I_total, b), alg, kwargs...)
+    A0 = LinearSolve.needs_concrete_A(alg) ? concretize(M.data) : cache_operator(M.data, b)
+    cache = init(LinearProblem(A0 + i * ωList[1] * I_total, b), alg, kwargs...)
     for (idx, ω) in enumerate(ωList)
         if idx > 1
-            cache.A = M.data.A + i * ω * I_total
+            cache.A = A0 + i * ω * I_total
         end
         sol = solve!(cache)
 
