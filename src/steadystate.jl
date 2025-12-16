@@ -31,7 +31,7 @@ function QuantumToolbox.steadystate(
 
     A = M.data + _SteadyStateConstraint(M)
     b = sparsevec([1], [1.0 + 0.0im], size(M, 1))
-    A = iscached(A) ? A : cache_operator(A, b)
+    A = nor(iscached(A), LinearSolve.needs_concrete_A(alg)) ? cache_operator(A, b) : A
 
     # solving x where A * x = b
     if verbose
