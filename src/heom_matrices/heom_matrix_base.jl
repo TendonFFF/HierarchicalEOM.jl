@@ -203,7 +203,7 @@ function Base.:(-)(M::AbstractHEOMLSMatrix, Sup::HEOMSuperOp)
 end
 
 SciMLOperators.cache_operator(M::AbstractHEOMLSMatrix, cachevec::AbstractVector) =
-    _reset_HEOMLS_data(M, cache_operator(M.data, cachevec))
+    _reset_HEOMLS_data(M, cache_operator(M.data, similar(cachevec)))
 
 @doc raw"""
     SciMLOperators.iscached(M::AbstractHEOMLSMatrix)

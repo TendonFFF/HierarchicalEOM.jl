@@ -31,7 +31,7 @@ function QuantumToolbox.steadystate(
 
     b = _HandleVectorType(M, sparsevec([1], [1.0 + 0.0im], size(M, 1)))
     A = M.data + _SteadyStateConstraint(M)
-    A = needs_concrete_A(alg) ? concretize(A) : cache_operator(A, b)
+    A = needs_concrete_A(alg) ? concretize(A) : cache_operator(A, similar(b))
 
     # solving x where A * x = b
     if verbose
