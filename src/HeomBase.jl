@@ -44,6 +44,7 @@ _get_SciML_matrix_wrapper(M::MatrixOperator) = _get_SciML_matrix_wrapper(M.A)
 _get_SciML_matrix_wrapper(M::ScaledOperator) = _get_SciML_matrix_wrapper(M.L)
 _get_SciML_matrix_wrapper(M::AddedOperator) = _get_SciML_matrix_wrapper(M.ops[1])
 _get_SciML_matrix_wrapper(M::AbstractHEOMLSMatrix) = _get_SciML_matrix_wrapper(M.data)
+_get_SciML_matrix_wrapper(M::TensorProductOperator) = _get_SciML_matrix_wrapper(M.ops[2])
 
 # equal to : sparse(vec(system_identity_matrix))
 function _Tr(T::Type{<:Number}, dimensions::Dimensions, N::Int)
@@ -95,12 +96,14 @@ _HandleTraceVectorType(M::AbstractHEOMLSMatrix, V::SparseVector) =
     _HandleTraceVectorType(_get_SciML_matrix_wrapper(M), V)
 _HandleTraceVectorType(M::Type{<:SparseMatrixCSC}, V::SparseVector) = V
 
-_HandleSteadyStateMatrix(M::AbstractHEOMLSMatrix{<:MatrixOperator{T,MT}}) where {T<:Number,MT<:SparseMatrixCSC} =
-    M.data.A + _SteadyStateConstraint(T, prod(M.dimensions), size(M, 1))
-
 # this adds the trace == 1 constraint for reduced density operator during linear solve of steadystate
-_SteadyStateConstraint(T::Type{<:Number}, D::Int, S::Int) =
-    sparse(ones(T, D), [(n - 1) * (D + 1) + 1 for n in 1:D], ones(T, D), S, S)
+function _SteadyStateConstraint(M::AbstractHEOMLSMatrix)
+    T = eltype(M)
+    D = prod(M.dimensions)
+    S = size(M, 1)
+    wrapper = _get_SciML_matrix_wrapper(M.data)
+    return wrapper(sparse(ones(T, D), [(n - 1) * (D + 1) + 1 for n in 1:D], ones(T, D), S, S))
+end
 
 function _check_sys_dim_and_ADOs_num(A, B)
     if (A.dimensions != B.dimensions)

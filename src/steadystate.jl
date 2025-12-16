@@ -15,11 +15,12 @@ Solve the steady state of the auxiliary density operators based on `LinearSolve.
 - `::ADOs` : The steady state of auxiliary density operators.
 """
 function QuantumToolbox.steadystate(
-    M::AbstractHEOMLSMatrix{<:MatrixOperator};
+    M::AbstractHEOMLSMatrix;
     alg::SciMLLinearSolveAlgorithm = KrylovJL_GMRES(rtol = 1e-12, atol = 1e-14),
     verbose::Bool = true,
     kwargs...,
 )
+    isconstant(M) || throw(ArgumentError("The HEOM matrix M should be time-independent."))
     haskey(kwargs, :solver) &&
         error("The keyword argument `solver` for solving HEOM steadystate is deprecated, use `alg` instead.")
 
@@ -28,8 +29,9 @@ function QuantumToolbox.steadystate(
         error("The parity of M should be \"EVEN\".")
     end
 
-    A = _HandleSteadyStateMatrix(M)
+    A = M.data + _SteadyStateConstraint(M)
     b = sparsevec([1], [1.0 + 0.0im], size(M, 1))
+    A = iscached(A) ? A : cache_operator(A, b)
 
     # solving x where A * x = b
     if verbose

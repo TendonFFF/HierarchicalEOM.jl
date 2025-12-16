@@ -1,7 +1,7 @@
 module HierarchicalEOM_CUDAExt
 
 using HierarchicalEOM
-import HierarchicalEOM: _HandleVectorType, _HandleTraceVectorType, _HandleSteadyStateMatrix, _SteadyStateConstraint
+import HierarchicalEOM: _HandleVectorType, _HandleTraceVectorType
 import QuantumToolbox: _complex_float_type, _convert_eltype_wordsize, makeVal, getVal, get_typename_wrapper
 import CUDA
 import CUDA: cu, CuArray
@@ -93,6 +93,4 @@ _HandleVectorType(M::Type{<:AbstractCuSparseArray}, V::SparseVector) = CuArray{_
 _HandleTraceVectorType(M::Type{<:AbstractCuSparseArray}, V::SparseVector) =
     CuSparseVector{_complex_float_type(eltype(M))}(V)
 
-_HandleSteadyStateMatrix(M::AbstractHEOMLSMatrix{<:MatrixOperator{T,MT}}) where {T<:Number,MT<:AbstractCuSparseArray} =
-    M.data.A + get_typename_wrapper(M.data.A){eltype(M)}(_SteadyStateConstraint(T, prod(M.dimensions), size(M, 1)))
 end
