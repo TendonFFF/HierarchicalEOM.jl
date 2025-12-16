@@ -23,7 +23,7 @@
     ados = steadystate(L, ψ0; verbose = true) # also test verbose
     ρs = getRho(ados)
     O = qeye(2) + 0.5 * sigmax()
-    @test isapprox(ados.data, ados_lazy.data; atol=1e-6)
+    @test isapprox(ados.data, ados_lazy.data; atol = 1e-6)
     @test expect(O, ados) ≈ real(tr(O * ρs))
     @test expect(O, ados, take_real = false) ≈ tr(O * ρs)
 
