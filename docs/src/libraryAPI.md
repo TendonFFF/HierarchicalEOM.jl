@@ -80,7 +80,6 @@ Base.eltype(M::HEOMSuperOp)
 Base.eltype(M::AbstractHEOMLSMatrix)
 iscached
 isconstant
-concretize
 Propagator
 addBosonDissipator
 addFermionDissipator
