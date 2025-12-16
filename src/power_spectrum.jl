@@ -131,8 +131,8 @@ remember to set the parameters:
         desc = "[PowerSpectrum] ",
         QuantumToolbox.settings.ProgressMeterKWARGS...,
     )
-    i = reverse ? convert(ElType, 1im) : i = convert(ElType, -1im)
-    I_total = Eye(size(M, 1))
+    i = reverse ? convert(ElType, 1im) : convert(ElType, -1im)
+    I_total = Eye{ElType}(size(M, 1))
     A0 = needs_concrete_A(alg) ? concretize(M.data) : cache_operator(M.data, similar(b))
     cache = init(LinearProblem(A0 + i * ωList[1] * I_total, b), alg, kwargs...)
     for (idx, ω) in enumerate(ωList)
