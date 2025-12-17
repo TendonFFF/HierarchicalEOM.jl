@@ -102,7 +102,7 @@ function Base.getindex(A::ADOs, i::Int)
 
     D = prod(A.dimensions)
     sup_dim = D^2
-    dt = reshape(A.data, N, sup_dim)[i, :]
+    dt = reshape(A.data, A.N, sup_dim)[i, :]
     return QuantumObject(reshape(dt, D, D), Operator(), A.dimensions)
 end
 
@@ -112,7 +112,7 @@ function Base.getindex(A::ADOs, r::UnitRange{Int})
 
     D = prod(A.dimensions)
     sup_dim = D^2
-    dt = reshape(A.data, N, sup_dim)
+    dt = reshape(A.data, A.N, sup_dim)
     result = map(i -> QuantumObject(reshape(dt[i, :], D, D), Operator(), A.dimensions), r)
     return result
 end
