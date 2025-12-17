@@ -16,7 +16,7 @@ General HEOM superoperator matrix.
     For a given `M::HEOMSuperOp`, `M.dims` or `getproperty(M, :dims)` returns its `dimensions` in the type of integer-vector.
 """
 struct HEOMSuperOp
-    data::SparseMatrixCSC{ComplexF64,Int64}
+    data::AbstractSciMLOperator
     dimensions::Dimensions
     N::Int
     parity::AbstractParity
@@ -74,7 +74,7 @@ function HEOMSuperOp(op, opParity::AbstractParity, dims, N::Int)
     dimensions = _gen_dimensions(dims)
     sup_op = HandleMatrixType(op, dimensions, "op (operator)"; type = SuperOperator())
 
-    return HEOMSuperOp(kron(Eye(N), sup_op.data), dimensions, N, opParity)
+    return HEOMSuperOp(TensorProductOperator(sup_op.data, Eye(N)), dimensions, N, opParity)
 end
 
 @doc raw"""
@@ -566,23 +566,25 @@ function minus_i_A_op!(
 end
 
 function combine_HEOMLS_terms(op)
-    Tensor_ops = op.ops |> collect # [ A_i ⊗ B_i ]
-    A_list = [top.ops[1].A for top in Tensor_ops] # [ A_i ]
-    B_list = [top.ops[2].A for top in Tensor_ops] # [ B_i ]
+    Tensor_ops = op.ops |> collect # [ B_i ⊗ A_i ]
+    B_list = [top.ops[1].A for top in Tensor_ops] # [ B_i ]
+    A_list = [top.ops[2].A for top in Tensor_ops] # [ A_i ]
 
     unique_B_ops = unique(B_list)
+    free = [false for i in B_list]
     index_groups = [[] for i in unique_B_ops]
     for i in eachindex(Tensor_ops)
         for j in eachindex(unique_B_ops)
-            if isequal(unique_B_ops[j], B_list[i])
+            if (unique_B_ops[j] == B_list[i]) && free[i]
                 push!(index_groups[j], i)
+                free[i] = false
             end
         end
     end
 
     return sum(pairs(unique_B_ops)) do (j, Bj)
         Aj = sum(k -> A_list[k], index_groups[j])
-        return TensorProductOperator(Aj, Bj)
+        return TensorProductOperator(Bj, Aj)
     end
 end
 
@@ -593,7 +595,7 @@ function assemble_HEOMLS_terms(M::Vector{<:AbstractSciMLOperator}, ::Val{:full},
         print("Evaluating lazy operations...")
         flush(stdout)
     end
-    M_full = map(x -> MatrixOperator(SciMLOperators.concretize(x)), M_combine)
+    M_full = map(x -> MatrixOperator(concretize(x)), M_combine)
     if verbose
         println("[DONE]")
         flush(stdout)

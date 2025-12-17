@@ -132,15 +132,15 @@ Generate the fermion-type HEOM Liouvillian superoperator matrix
 
     # Create SciML lazy HEOM Liouvillian superoperator
     sup_dim = prod(_Hsys.dimensions)^2
-    L_t_indep = kron(MatrixOperator(Eye(Nado)), minus_i_L_op(_Hsys)) # the Liouvillian operator for free Hamiltonian term
-    L_t_indep += kron(MatrixOperator(spdiagm(minus_γ_term)), Eye(sup_dim)) # minus sum γ terms
+    L_t_indep = TensorProductOperator(minus_i_L_op(_Hsys), Eye(Nado)) # the Liouvillian operator for free Hamiltonian term
+    L_t_indep += TensorProductOperator(Eye(sup_dim), spdiagm(minus_γ_term)) # minus sum γ terms
 
     # Superoperator cross level terms
     for (f_term, fB) in zip(F_terms, baths)
         for op in fieldnames(HEOMSparseStructure)
             f_coo = getfield(f_term, op)
             f_coo isa Nothing && continue
-            L_t_indep += kron(MatrixOperator(sparse(f_coo)), getfield(fB, op))
+            L_t_indep += TensorProductOperator(getfield(fB, op), sparse(f_coo))
         end
     end
     if verbose
