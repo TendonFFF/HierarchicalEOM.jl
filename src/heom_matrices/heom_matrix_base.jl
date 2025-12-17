@@ -74,7 +74,7 @@ function HEOMSuperOp(op, opParity::AbstractParity, dims, N::Int)
     dimensions = _gen_dimensions(dims)
     sup_op = HandleMatrixType(op, dimensions, "op (operator)"; type = SuperOperator())
 
-    return HEOMSuperOp(TensorProductOperator(sup_op.data, Eye(N)), dimensions, N, opParity)
+    return HEOMSuperOp(MatrixOperator(kron(sup_op.data, Eye(N))), dimensions, N, opParity)
 end
 
 @doc raw"""
@@ -175,14 +175,14 @@ function Base.:(+)(Sup1::HEOMSuperOp, Sup2::HEOMSuperOp)
     return HEOMSuperOp(Sup1.data + Sup2.data, Sup1.dimensions, Sup1.N, Sup1.parity)
 end
 
-Base.:(+)(M::MatrixOperator, Sup::HEOMSuperOp) = MatrixOperator(M.A + Sup.data)
+Base.:(+)(M::MatrixOperator, Sup::HEOMSuperOp) = M + Sup.data
 Base.:(+)(M::AbstractSciMLOperator, Sup::HEOMSuperOp) = M + Sup.data
 
 function Base.:(+)(M::AbstractHEOMLSMatrix, Sup::HEOMSuperOp)
     _check_sys_dim_and_ADOs_num(M, Sup)
     _check_parity(M, Sup)
 
-    return _reset_HEOMLS_data(M, M.data + Sup)
+    return _reset_HEOMLS_data(M, MatrixOperator(concretize(M.data + Sup)))
 end
 
 function Base.:(-)(Sup1::HEOMSuperOp, Sup2::HEOMSuperOp)
@@ -571,7 +571,7 @@ function combine_HEOMLS_terms(op)
     A_list = [top.ops[2].A for top in Tensor_ops] # [ A_i ]
 
     unique_B_ops = unique(B_list)
-    free = [false for i in B_list]
+    free = [true for i in B_list]
     index_groups = [[] for i in unique_B_ops]
     for i in eachindex(Tensor_ops)
         for j in eachindex(unique_B_ops)
@@ -583,6 +583,7 @@ function combine_HEOMLS_terms(op)
     end
 
     return sum(pairs(unique_B_ops)) do (j, Bj)
+        isempty(index_groups[j]) && return 0
         Aj = sum(k -> A_list[k], index_groups[j])
         return TensorProductOperator(Bj, Aj)
     end
@@ -595,7 +596,7 @@ function assemble_HEOMLS_terms(M::Vector{<:AbstractSciMLOperator}, ::Val{:full},
         print("Evaluating lazy operations...")
         flush(stdout)
     end
-    M_full = map(x -> MatrixOperator(concretize(x)), M_combine)
+    M_full = map(x -> MatrixOperator(SciMLOperators.concretize(x)), M_combine)
     if verbose
         println("[DONE]")
         flush(stdout)

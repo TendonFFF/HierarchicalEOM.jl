@@ -19,7 +19,7 @@
     # system-bath coupling operator
     Q = Qobj([
         0.1234 0.1357+0.2468im
-        0.1357-0.2468im 0.5678
+        0.1357+0.2468im 0.5678
     ])
     Bbath = Boson_DrudeLorentz_Pade(Q, λ, W, kT, N)
     Fbath = Fermion_Lorentz_Pade(Q, λ, μ, W, kT, N)
@@ -41,8 +41,8 @@
     @test L_lazy.data isa SciMLOperators.AddedOperator
     @test length(L_combine.data.ops) == 4 * 1 + 2 # 4 ops per fermion bath + 2 free terms
     @test length(L_lazy.data.ops) == 8 * 1 + 2 # 8 ops per fermion bath + 2 free terms
-    L = addFermionDissipator(L, J)
     @test nnz(L.data.A) == nnz(L(0).data.A) == 22516
+    L = addFermionDissipator(L, J)
     @test isconstant(L)
     @test iscached(L)
     @test iscached(L_combine_cached)
