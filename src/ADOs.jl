@@ -63,7 +63,10 @@ Generate the object of auxiliary density operators for HEOM model.
 """
 function ADOs(ρ::QuantumObject, N::Int = 1, parity::AbstractParity = EVEN)
     _ρ = sparse(vec(ket2dm(ρ).data)) # to avoid _ρ begin reshape type, which cannot do _ρ.nzind and _ρ.nzval
-    return ADOs(sparsevec(_ρ.nzind, _ρ.nzval, N * length(_ρ)), ρ.dimensions, N, parity)
+    D = prod(ρ.dimensions)
+    sup_dim = D^2
+    dt = sparse(fill(1, nnz(_ρ)), _ρ.nzind, _ρ.nzval, N, sup_dim)
+    return ADOs(reshape(dt, (N * sup_dim,)), ρ.dimensions, N, parity)
 end
 ADOs(ρ, N::Int = 1, parity::AbstractParity = EVEN) =
     error("HierarchicalEOM doesn't support input `ρ` with type : $(typeof(ρ))")
@@ -99,21 +102,18 @@ function Base.getindex(A::ADOs, i::Int)
 
     D = prod(A.dimensions)
     sup_dim = D^2
-    back = sup_dim * i
-    return QuantumObject(reshape(A.data[(back-sup_dim+1):back], D, D), Operator(), A.dimensions)
+    dt = reshape(A.data, N, sup_dim)[i, :]
+    return QuantumObject(reshape(dt, D, D), Operator(), A.dimensions)
 end
 
 function Base.getindex(A::ADOs, r::UnitRange{Int})
     checkbounds(A, r[1])
     checkbounds(A, r[end])
 
-    result = []
     D = prod(A.dimensions)
     sup_dim = D^2
-    for i in r
-        back = sup_dim * i
-        push!(result, QuantumObject(reshape(A.data[(back-sup_dim+1):back], D, D), Operator(), A.dimensions))
-    end
+    dt = reshape(A.data, N, sup_dim)
+    result = map(i -> QuantumObject(reshape(dt[i, :], D, D), Operator(), A.dimensions), r)
     return result
 end
 Base.getindex(A::ADOs, ::Colon) = getindex(A, 1:lastindex(A))
@@ -136,10 +136,7 @@ Return the density matrix of the reduced state (system) from a given auxiliary d
 # Returns
 - `ρ::QuantumObject` : The density matrix of the reduced state
 """
-function getRho(ados::ADOs)
-    D = prod(ados.dimensions)
-    return QuantumObject(reshape(ados.data[1:(D^2)], D, D), Operator(), ados.dimensions)
-end
+getRho(ados::ADOs) = ados[1]
 
 @doc raw"""
     getADO(ados, idx)
