@@ -261,8 +261,12 @@ get_cached_HEOMLS_data(M::AbstractHEOMLSMatrix, cachevec::AbstractVector) = get_
 
 get_cached_HEOMLS_data(M::T, cachevec::AbstractVector) where {T <: SciMLOperators.MatrixOperator} = M
 
+get_cached_HEOMLS_data(M::HEOMLSOperator, cachevec::AbstractVector) = cache_operator_with_check(M, cachevec)
+
 get_cached_HEOMLS_data(M::T, cachevec::AbstractVector) where {T <: SciMLOperators.AbstractSciMLOperator} =
     cache_operator_with_check(M, cachevec)
+
+_get_SciML_matrix_wrapper(M::HEOMLSOperator) = _get_SciML_matrix_wrapper(M.L_sys)
 
 SciMLOperators.cache_operator(M::AbstractHEOMLSMatrix, cachevec::AbstractVector) =
     _reset_HEOMLS_data(M, get_cached_HEOMLS_data(M, cachevec))
@@ -658,6 +662,26 @@ function _unique_sparse_groups(B_list)
     return unique_Bs, index_groups
 end
 
+function _to_HEOMLSOperator(op::AddedOperator)
+    all_ops = collect(op.ops)
+    vN_tpo = popfirst!(all_ops)  # TensorProductOperator for von Neumann term
+    γ_tpo = popfirst!(all_ops)   # TensorProductOperator for γ term
+
+    L_sys = vN_tpo.ops[2]         # inner MatrixOperator (d²×d²)
+    γ_diag = γ_tpo.ops[1].A.diag # diagonal from DiagonalOperator = MatrixOperator(Diagonal(...))
+
+    Nado = length(γ_diag)
+    sup_dim = size(L_sys, 1)
+    T = eltype(L_sys)
+
+    ops = Vector{Tuple{SparseMatrixCSC{T,Int64}, AbstractSciMLOperator{T}}}()
+    for tpo in all_ops
+        push!(ops, (tpo.ops[1].A, tpo.ops[2]))
+    end
+
+    return HEOMLSOperator(L_sys, Vector{T}(γ_diag), ops, Nado, sup_dim, nothing)
+end
+
 function combine_HEOMLS_terms(op::AddedOperator)
     Tensor_ops = op.ops |> collect # [ A_i ⊗ B_i ]
     Id_terms = popfirst!(Tensor_ops)  # von Neumann term
@@ -707,9 +731,10 @@ function assemble_HEOMLS_terms(M::Vector{<:AbstractSciMLOperator}, ::Val{:combin
         println("[DONE]")
         flush(stdout)
     end
-    return M_combine
+    return map(_to_HEOMLSOperator, M_combine)
 end
-assemble_HEOMLS_terms(M::Vector{<:AbstractSciMLOperator}, ::Val{:none}, verbose::Bool) = M
+assemble_HEOMLS_terms(M::Vector{<:AbstractSciMLOperator}, ::Val{:none}, verbose::Bool) =
+    map(_to_HEOMLSOperator, M)
 assemble_HEOMLS_terms(M::AbstractSciMLOperator, method::Val, verbose::Bool) =
     assemble_HEOMLS_terms([M], method, verbose)
 
