@@ -31,6 +31,23 @@ struct HEOMLSOperator{T, TLsys, TC} <: AbstractSciMLOperator{T}
     Nado::Int
     sup_dim::Int
     cache::TC
+
+    function HEOMLSOperator(
+        L_sys::TLsys,
+        γ_diag::Vector{T},
+        ops::AbstractVector,
+        Nado::Int,
+        sup_dim::Int,
+        cache::TC = nothing,
+        ) where {T, TLsys, TC}
+
+        ops_typed = Vector{Tuple{SparseMatrixCSC{T, Int64}, AbstractSciMLOperator{T}}}(undef, length(ops))
+        for (i, (A_i, B_i)) in enumerate(ops)
+            ops_typed[i] = (sparse(A_i), B_i)
+        end
+
+        new{T, TLsys, TC}(L_sys, γ_diag, ops_typed, Nado, sup_dim, cache)
+    end
 end
 
 Base.size(L::HEOMLSOperator) = (L.Nado * L.sup_dim, L.Nado * L.sup_dim)

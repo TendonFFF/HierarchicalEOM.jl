@@ -669,18 +669,13 @@ function _to_HEOMLSOperator(op::AddedOperator)
 
     L_sys = vN_tpo.ops[2]         # inner MatrixOperator (d²×d²)
     γ_diag = γ_tpo.ops[1].A.diag # diagonal from DiagonalOperator = MatrixOperator(Diagonal(...))
-
-    Nado = length(γ_diag)
-    sup_dim = size(L_sys, 1)
     T = eltype(L_sys)
 
-    ops = Vector{Tuple{SparseMatrixCSC{T,Int64}, AbstractSciMLOperator{T}}}()
-    for tpo in all_ops
-        push!(ops, (tpo.ops[1].A, tpo.ops[2]))
-    end
-
-    return HEOMLSOperator(L_sys, Vector{T}(γ_diag), ops, Nado, sup_dim, nothing)
+    raw_ops = [(tpo.ops[1].A, tpo.ops[2]) for tpo in all_ops]
+    return HEOMLSOperator(L_sys, Vector{T}(γ_diag), raw_ops, length(γ_diag), size(L_sys, 1))
 end
+
+HEOMLSOperator(M::AbstractHEOMLSMatrix) = _to_HEOMLSOperator(M.data)
 
 function combine_HEOMLS_terms(op::AddedOperator)
     Tensor_ops = op.ops |> collect # [ A_i ⊗ B_i ]
@@ -731,10 +726,9 @@ function assemble_HEOMLS_terms(M::Vector{<:AbstractSciMLOperator}, ::Val{:combin
         println("[DONE]")
         flush(stdout)
     end
-    return map(_to_HEOMLSOperator, M_combine)
+    return M_combine
 end
-assemble_HEOMLS_terms(M::Vector{<:AbstractSciMLOperator}, ::Val{:none}, verbose::Bool) =
-    map(_to_HEOMLSOperator, M)
+assemble_HEOMLS_terms(M::Vector{<:AbstractSciMLOperator}, ::Val{:none}, verbose::Bool) = M
 assemble_HEOMLS_terms(M::AbstractSciMLOperator, method::Val, verbose::Bool) =
     assemble_HEOMLS_terms([M], method, verbose)
 

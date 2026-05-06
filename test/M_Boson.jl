@@ -45,9 +45,9 @@
     @test nnz(L.data.A) == nnz(L(0).data.A) == nnz(concretize(L_combine.data)) == nnz(concretize(L_lazy.data)) == 4422
     @test L.data isa SciMLOperators.MatrixOperator
     @test issparse(L.data.A) # check if it's a sparse matrix
-    @test L_combine.data isa HEOMLSOperator
-    @test L_lazy.data isa HEOMLSOperator
-    @test length(L_combine.data.ops) == length(L_lazy.data.ops) == 2 * 1 # 2 coupling ops per boson bath
+    @test L_combine.data isa SciMLOperators.AddedOperator
+    @test L_lazy.data isa SciMLOperators.AddedOperator
+    @test length(L_combine.data.ops) == length(L_lazy.data.ops) == 2 * 1 + 2 # 2 ops per boson bath + 2 free terms
     L = addBosonDissipator(L, J)
     @test nnz(L.data.A) == nnz(L(0).data.A) == 4760
     @test isconstant(L)
