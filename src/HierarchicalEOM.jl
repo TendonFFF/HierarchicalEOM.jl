@@ -90,6 +90,7 @@ include("Parity.jl")
 include("ADOs.jl")
 
 # HEOM Liouvillian superoperator (HEOMLS) matrices
+include("heom_matrices/HEOMLSOperator.jl")
 include("heom_matrices/heom_matrix_base.jl")
 include("heom_matrices/Nvec.jl")
 include("heom_matrices/HierarchyDict.jl")
