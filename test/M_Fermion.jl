@@ -44,10 +44,10 @@
     @test L(0).data.A == concretize(L_combine).data.A
     @test L.data isa SciMLOperators.MatrixOperator
     @test issparse(L.data.A) # check if it's a sparse matrix
-    @test L_combine.data isa SciMLOperators.AddedOperator
-    @test L_lazy.data isa SciMLOperators.AddedOperator
-    @test length(L_combine.data.ops) == 4 * 1 + 2 # 4 ops per fermion bath + 2 free terms
-    @test length(L_lazy.data.ops) == 8 * 1 + 2 # 8 ops per fermion bath + 2 free terms
+    @test L_combine.data isa HEOMLSOperator
+    @test L_lazy.data isa HEOMLSOperator
+    @test length(L_combine.data.ops) == 4 * 1 # 4 coupling ops per fermion bath
+    @test length(L_lazy.data.ops) == 8 * 1 # 8 coupling ops per fermion bath
     L = addFermionDissipator(L, J)
     @test nnz(L.data.A) == nnz(L(0).data.A) == 11216
     @test isconstant(L)
