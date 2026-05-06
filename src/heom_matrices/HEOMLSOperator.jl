@@ -17,9 +17,9 @@ replacing the cache-sharing hack previously required for `AddedOperator` of
 `TensorProductOperator`s.
 
 # Fields
-- `L_sys` : ``d^2 \times d^2`` system Liouvillian (von Neumann term)
+- `L_sys` : ``d^2 \times d^2`` system Liouvillian (von Neumann term); parametric to support time-dependent operators
 - `γ_diag` : length-``N_{\rm ado}`` diagonal for the ``\mathrm{Diag}(\gamma) \otimes I_{d^2}`` damping term
-- `ops` : coupling terms as `(A_i, B_i)` pairs (sparse ``N_{\rm ado} \times N_{\rm ado}`` outer, ``d^2 \times d^2`` inner)
+- `ops` : coupling terms as `(A_i, B_i)` pairs — both sparse; outer ``N_{\rm ado} \times N_{\rm ado}``, inner ``d^2 \times d^2``
 - `Nado` : number of auxiliary density operators
 - `sup_dim` : system superoperator dimension ``d^2``
 - `cache` : preallocated buffer of length `Nado * sup_dim`, or `nothing` before caching
@@ -27,28 +27,32 @@ replacing the cache-sharing hack previously required for `AddedOperator` of
 struct HEOMLSOperator{T, TLsys, TC} <: AbstractSciMLOperator{T}
     L_sys::TLsys
     γ_diag::Vector{T}
-    ops::Vector{Tuple{SparseMatrixCSC{T, Int64}, AbstractSciMLOperator{T}}}
+    ops::Vector{Tuple{SparseMatrixCSC{T, Int64}, SparseMatrixCSC{T, Int64}}}
     Nado::Int
     sup_dim::Int
     cache::TC
 
     function HEOMLSOperator(
-        L_sys::TLsys,
-        γ_diag::Vector{T},
-        ops::AbstractVector,
-        Nado::Int,
-        sup_dim::Int,
-        cache::TC = nothing,
+            L_sys::TLsys,
+            γ_diag::Vector{T},
+            ops::AbstractVector,
+            Nado::Int,
+            sup_dim::Int,
+            cache::TC = nothing,
         ) where {T, TLsys, TC}
 
-        ops_typed = Vector{Tuple{SparseMatrixCSC{T, Int64}, AbstractSciMLOperator{T}}}(undef, length(ops))
+        ops_typed = Vector{Tuple{SparseMatrixCSC{T, Int64}, SparseMatrixCSC{T, Int64}}}(undef, length(ops))
         for (i, (A_i, B_i)) in enumerate(ops)
-            ops_typed[i] = (sparse(A_i), B_i)
+            ops_typed[i] = (sparse(A_i), _heomls_to_sparse(B_i))
         end
 
         new{T, TLsys, TC}(L_sys, γ_diag, ops_typed, Nado, sup_dim, cache)
     end
 end
+
+# Extract the concrete sparse matrix from whatever wraps it
+_heomls_to_sparse(B::MatrixOperator) = B.A
+_heomls_to_sparse(B::AbstractMatrix) = sparse(B)
 
 Base.size(L::HEOMLSOperator) = (L.Nado * L.sup_dim, L.Nado * L.sup_dim)
 
@@ -76,13 +80,12 @@ SciMLOperators.has_concretization(::HEOMLSOperator) = true
 SciMLOperators.isconvertible(::HEOMLSOperator) = true
 SciMLOperators.has_mul(::HEOMLSOperator) = true
 SciMLOperators.has_mul!(::HEOMLSOperator) = true
-SciMLOperators.has_adjoint(L::HEOMLSOperator) =
-    has_adjoint(L.L_sys) && all(t -> has_adjoint(last(t)), L.ops)
-SciMLOperators.isconstant(L::HEOMLSOperator) =
-    isconstant(L.L_sys) && all(t -> isconstant(last(t)), L.ops)
+# B_i are constant sparse matrices; only L_sys may be time-dependent or non-adjoint
+SciMLOperators.has_adjoint(L::HEOMLSOperator) = has_adjoint(L.L_sys)
+SciMLOperators.isconstant(L::HEOMLSOperator) = isconstant(L.L_sys)
 
 function SciMLOperators.iscached(L::HEOMLSOperator)
-    return !isnothing(L.cache) && iscached(L.L_sys) && all(t -> iscached(last(t)), L.ops)
+    return !isnothing(L.cache) && iscached(L.L_sys)
 end
 
 # --- cache ---
@@ -94,10 +97,7 @@ end
 function SciMLOperators.cache_internals(L::HEOMLSOperator, v::AbstractVector)
     V = reshape(v, L.sup_dim, L.Nado)
     new_L_sys = cache_operator(L.L_sys, V)
-    new_ops = map(L.ops) do (A_i, B_i)
-        (A_i, cache_operator(B_i, V))
-    end
-    return HEOMLSOperator(new_L_sys, L.γ_diag, new_ops, L.Nado, L.sup_dim, L.cache)
+    return HEOMLSOperator(new_L_sys, L.γ_diag, L.ops, L.Nado, L.sup_dim, L.cache)
 end
 
 # --- mul! ---
@@ -134,9 +134,7 @@ end
 # --- adjoint ---
 
 function Base.adjoint(L::HEOMLSOperator{T}) where {T}
-    adj_ops = map(L.ops) do (A_i, B_i)
-        (copy(adjoint(A_i)), adjoint(B_i))
-    end
+    adj_ops = [(adjoint(A_i), adjoint(B_i)) for (A_i, B_i) in L.ops]
     return HEOMLSOperator(adjoint(L.L_sys), conj.(L.γ_diag), adj_ops, L.Nado, L.sup_dim, L.cache)
 end
 
@@ -148,8 +146,7 @@ function Base.convert(::Type{AbstractMatrix}, L::HEOMLSOperator{T}) where {T}
     L_sys_mat = sparse(convert(AbstractMatrix, L.L_sys))::SparseMatrixCSC{T,Int64}
     mat = kron(I_N, L_sys_mat) + spdiagm(repeat(L.γ_diag; inner = d2))
     for (A_i, B_i) in L.ops
-        B_mat = sparse(convert(AbstractMatrix, B_i))::SparseMatrixCSC{T,Int64}
-        mat = mat + kron(A_i, B_mat)
+        mat = mat + kron(A_i, B_i)
     end
     return mat
 end
@@ -158,8 +155,5 @@ end
 
 function SciMLOperators.update_coefficients!(L::HEOMLSOperator, u, p, t; kwargs...)
     update_coefficients!(L.L_sys, u, p, t; kwargs...)
-    foreach(L.ops) do (_, B_i)
-        update_coefficients!(B_i, u, p, t; kwargs...)
-    end
     return nothing
 end
